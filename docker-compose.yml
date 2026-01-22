@@ -1,0 +1,36 @@
+services:
+  app:
+    build: .
+    ports:
+      - "1409:1409"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=mysql://edstronaut:password@mysql:3306/edstronaut
+    depends_on:
+      - redis
+      - mysql
+    volumes:
+      - ./temp_execution:/app/temp_execution
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: edstronaut
+      MYSQL_USER: edstronaut
+      MYSQL_PASSWORD: password
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  redis_data:
+  mysql_data:
