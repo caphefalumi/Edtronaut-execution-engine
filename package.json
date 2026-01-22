@@ -1,5 +1,5 @@
 {
-  "name": "edstronaut",
+  "name": "edtronaut",
   "module": "index.ts",
   "type": "module",
   "private": true,

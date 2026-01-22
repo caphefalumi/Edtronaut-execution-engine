@@ -1,4 +1,4 @@
-# Live Code Execution System (Edstronaut)
+# Live Code Execution System (Edtronaut)
 
 A robust backend system for executing user-submitted code in real-time, built with **Bun**, **ElysiaJS**, **BullMQ** (Redis), and **MySQL**.
 

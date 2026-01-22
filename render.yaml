@@ -1,7 +1,7 @@
 services:
   # The Main API & Worker Service (Elysia + BullMQ)
   - type: web
-    name: edstronaut-engine
+    name: edtronaut-engine
     runtime: docker
     plan: free
     region: singapore # Choose closest to you (oregon, ohio, frankfurt, singapore)
