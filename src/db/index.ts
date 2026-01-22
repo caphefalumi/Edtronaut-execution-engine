@@ -35,9 +35,6 @@ export class DB {
 
     let connectionUri = process.env.DATABASE_URL || "";
     
-    // Cloud provider specific fixes
-    // Aiven requires SSL, PlanetScale requires SSL. 
-    // We auto-enable SSL if the host looks like a cloud provider or SSL params are present.
     const isCloudDB = connectionUri.includes("aivencloud.com") || 
                       connectionUri.includes("psdb.cloud") || 
                       connectionUri.includes("aws") ||
@@ -50,14 +47,13 @@ export class DB {
         waitForConnections: true,
         connectionLimit: 10,
         queueLimit: 0,
-        // Increase connection timeout for cloud DBs (default is 10s)
         connectTimeout: 20000 
     };
 
     if (isCloudDB || process.env.DATABASE_SSL === "true") {
         console.log("[DB] Detected Cloud/SSL Database. Enforcing SSL config.");
         dbConfig.ssl = { 
-            rejectUnauthorized: false // Allow self-signed certs (safest for broad compatibility)
+            rejectUnauthorized: false 
         };
     }
 
@@ -69,7 +65,6 @@ export class DB {
 
   private async testConnection() {
       try {
-          // Log where we are TRYING to connect (sanitized)
           if (process.env.DATABASE_URL) {
             try {
                 const url = new URL(process.env.DATABASE_URL);
@@ -102,6 +97,17 @@ export class DB {
           )
         `);
 
+        // Migration: Check if 'language' column exists, if not add it
+        // This fixes the ER_BAD_FIELD_ERROR if table exists from old schema
+        try {
+            await connection.query("SELECT language FROM sessions LIMIT 1");
+        } catch (err: any) {
+            if (err.code === 'ER_BAD_FIELD_ERROR') {
+                console.log("[DB] Migrating: Adding missing 'language' column to sessions table...");
+                await connection.query("ALTER TABLE sessions ADD COLUMN language TEXT NOT NULL AFTER id");
+            }
+        }
+
         await connection.query(`
           CREATE TABLE IF NOT EXISTS executions (
             id VARCHAR(36) PRIMARY KEY,
@@ -119,7 +125,7 @@ export class DB {
         connection.release();
       }
     } catch (err) {
-      console.error("[DB] Schema Init Failed (likely due to connection error):", err);
+      console.error("[DB] Schema Init Failed:", err);
     }
   }
 
