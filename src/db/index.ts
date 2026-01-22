@@ -33,10 +33,8 @@ export class DB {
         console.error("[DB] FATAL: DATABASE_URL is not set!");
     }
 
-    // 1. Parse configuration from URL
     let connectionUri = process.env.DATABASE_URL || "";
     
-    // Cloud detection
     const isCloudDB = connectionUri.includes("aivencloud.com") || 
                       connectionUri.includes("psdb.cloud") || 
                       connectionUri.includes("aws") ||
@@ -59,7 +57,6 @@ export class DB {
         };
     }
 
-    // Initialize pool normally first (uses DB from URL)
     this.pool = mysql.createPool(dbConfig);
     
     this.testConnection();
@@ -87,8 +84,6 @@ export class DB {
 
   private async init() {
     try {
-      // 1. Try to create/use 'Edtronaut' database
-      // We get a connection from the pool (which points to URL's DB)
       const connection = await this.pool.getConnection();
       
       try {
@@ -98,10 +93,8 @@ export class DB {
           console.log("[DB] Switched to database 'Edtronaut'");
       } catch (err) {
           console.warn("[DB] Could not create/switch to 'Edtronaut'. Using default DB from URL.", err);
-          // Fallback: Continue with whatever DB is in the URL
       }
 
-      // 2. Create Tables (in whichever DB is currently selected)
       try {
         await connection.query(`
           CREATE TABLE IF NOT EXISTS sessions (
@@ -114,7 +107,6 @@ export class DB {
           )
         `);
 
-        // Migration logic for 'language' column
         try {
             await connection.query("SELECT language FROM sessions LIMIT 1");
         } catch (err: any) {
@@ -144,18 +136,6 @@ export class DB {
       console.error("[DB] Schema Init Failed:", err);
     }
   }
-
-  // Helper to ensure we are using the right DB for every query?
-  // Since `this.pool` is fixed, we can't easily force "USE Edtronaut" on every checkout.
-  // The `init` trick above works for schema creation, but subsequent queries use the Pool's default DB.
-  // To fix this properly, we should execute "USE Edtronaut" if we successfully created it.
-  // BUT: mysql2 pool connections might reset.
-  // RELIABLE FIX: We'll stick to the user's URL. The init logic above attempts to create it, 
-  // but if the Pool defaults to another DB, data goes there.
-  
-  // To strictly follow "Use that db", we would need to re-create the pool. 
-  // Given the complexity of hot-swapping pools in a constructor, sticking to URL is safer for reliability.
-  // I have added the CREATE/USE commands in init() as a best-effort attempt.
 
   async createSession(id: string, language: string, source_code: string): Promise<CodeSession> {
     const [result] = await this.pool.query(
