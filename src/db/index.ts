@@ -29,51 +29,61 @@ export class DB {
   constructor() {
     console.log("[DB] Initializing database connection...");
     
-    // Parse the URL to verify it's being read
     if (!process.env.DATABASE_URL) {
         console.error("[DB] FATAL: DATABASE_URL is not set!");
     }
 
-    // Explicitly configure SSL if using a cloud provider that might need it
-    // Most cloud URLs look like: mysql://user:pass@host:port/db?ssl-mode=REQUIRED
-    // We strip parameters that mysql2 might not like and handle SSL explicitly
+    let connectionUri = process.env.DATABASE_URL || "";
     
+    // Cloud provider specific fixes
+    // Aiven requires SSL, PlanetScale requires SSL. 
+    // We auto-enable SSL if the host looks like a cloud provider or SSL params are present.
+    const isCloudDB = connectionUri.includes("aivencloud.com") || 
+                      connectionUri.includes("psdb.cloud") || 
+                      connectionUri.includes("aws") ||
+                      connectionUri.includes("ssl-mode");
+
     const dbConfig: any = {
-        uri: process.env.DATABASE_URL,
+        uri: connectionUri,
         enableKeepAlive: true,
         keepAliveInitialDelay: 0,
         waitForConnections: true,
         connectionLimit: 10,
-        queueLimit: 0
+        queueLimit: 0,
+        // Increase connection timeout for cloud DBs (default is 10s)
+        connectTimeout: 20000 
     };
 
-    // Auto-detect SSL requirement from URL or Env
-    const useSSL = process.env.DATABASE_URL?.includes("ssl-mode") || 
-                   process.env.DATABASE_URL?.includes("ssl=") ||
-                   process.env.DATABASE_SSL === "true";
-
-    if (useSSL) {
-        console.log("[DB] Enabling SSL for database connection");
-        dbConfig.ssl = { rejectUnauthorized: false }; // Allow self-signed certs common in some cloud providers
+    if (isCloudDB || process.env.DATABASE_SSL === "true") {
+        console.log("[DB] Detected Cloud/SSL Database. Enforcing SSL config.");
+        dbConfig.ssl = { 
+            rejectUnauthorized: false // Allow self-signed certs (safest for broad compatibility)
+        };
     }
 
     this.pool = mysql.createPool(dbConfig);
     
-    // Test connection immediately to fail fast
     this.testConnection();
     this.init();
   }
 
   private async testConnection() {
       try {
+          // Log where we are TRYING to connect (sanitized)
+          if (process.env.DATABASE_URL) {
+            try {
+                const url = new URL(process.env.DATABASE_URL);
+                console.log(`[DB] Attempting connection to Host: ${url.hostname}, Port: ${url.port || 3306}`);
+            } catch (e) {
+                console.log("[DB] Could not parse DATABASE_URL for logging.");
+            }
+          }
+
           const conn = await this.pool.getConnection();
-          console.log("[DB] Successfully connected to MySQL!");
+          console.log("[DB] ✅ Successfully connected to MySQL!");
           conn.release();
       } catch (err: any) {
-          console.error(`[DB] Connection Failed: ${err.code} - ${err.message}`);
-          // Don't log full URL to avoid leaking passwords, but log the host
-          const sanitizedHost = process.env.DATABASE_URL?.split('@')[1]?.split('/')[0] || "unknown";
-          console.error(`[DB] Host: ${sanitizedHost}`); 
+          console.error(`[DB] ❌ Connection Failed: ${err.code} - ${err.message}`);
       }
   }
 
@@ -109,7 +119,7 @@ export class DB {
         connection.release();
       }
     } catch (err) {
-      console.error("[DB] Schema Init Failed:", err);
+      console.error("[DB] Schema Init Failed (likely due to connection error):", err);
     }
   }
 
