@@ -1,6 +1,6 @@
-# Live Code Execution System
+# Live Code Execution System (Edstronaut)
 
-A robust backend system for executing user-submitted code in real-time, built with **Bun**, **ElysiaJS**, **BullMQ** (Redis), and **SQLite**.
+A robust backend system for executing user-submitted code in real-time, built with **Bun**, **ElysiaJS**, **BullMQ** (Redis), and **MySQL**.
 
 ## Features
 
@@ -8,15 +8,16 @@ A robust backend system for executing user-submitted code in real-time, built wi
 - **Asynchronous Processing**: Uses BullMQ/Redis for non-blocking job queues.
 - **Autosave**: Persists session state instantly.
 - **Secure Isolation**: Runs code in ephemeral subprocesses with strict timeouts.
-- **Persistence**: Stores full session and execution history in SQLite.
+- **Persistence**: Stores full session and execution history in MySQL.
+- **Dockerized**: Full environment (App, Redis, MySQL) orchestrated with Docker Compose.
 
 ## Tech Stack
 
 - **Runtime**: [Bun](https://bun.sh) (v1.1+)
 - **API**: [ElysiaJS](https://elysiajs.com)
 - **Queue**: [BullMQ](https://docs.bullmq.io) on Redis
-- **Database**: `bun:sqlite` (SQLite3)
-- **Container**: Docker & Docker Compose
+- **Database**: MySQL (v8.0)
+- **Container**: Docker (Multi-stage build) & Docker Compose
 
 ## Getting Started
 
@@ -29,15 +30,17 @@ A robust backend system for executing user-submitted code in real-time, built wi
 
 1. Start the services:
    ```bash
-   docker-compose up --build
+   docker-compose up --build -d
    ```
-2. The API will be available at `http://localhost:3000`.
+2. The API will be available at `http://localhost:1409`.
 
-### Run Locally
+### Run Locally (Development)
 
-1. Start Redis (required):
+If you prefer to run the app outside of Docker while keeping services containerized:
+
+1. Start dependencies (Redis & MySQL):
    ```bash
-   docker-compose up redis -d
+   docker-compose up redis mysql -d
    ```
 2. Install dependencies:
    ```bash
@@ -47,8 +50,11 @@ A robust backend system for executing user-submitted code in real-time, built wi
    ```bash
    bun run src/index.ts
    ```
+   *Note: The server will run on port 1409.*
 
 ## API Documentation
+
+**Base URL:** `http://localhost:1409`
 
 ### 1. Create Session
 **POST** `/code-sessions`

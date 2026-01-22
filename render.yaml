@@ -1,0 +1,15 @@
+services:
+  # The Main API & Worker Service (Elysia + BullMQ)
+  - type: web
+    name: edstronaut-engine
+    runtime: docker
+    plan: free
+    region: singapore # Choose closest to you (oregon, ohio, frankfurt, singapore)
+    envVars:
+      - key: PORT
+        value: 1409
+      # You must set these in the Render Dashboard
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
