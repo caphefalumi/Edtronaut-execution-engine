@@ -75,10 +75,10 @@ export class DB {
           }
 
           const conn = await this.pool.getConnection();
-          console.log("[DB] ✅ Successfully connected to MySQL!");
+          console.log("[DB] Successfully connected to MySQL!");
           conn.release();
       } catch (err: any) {
-          console.error(`[DB] ❌ Connection Failed: ${err.code} - ${err.message}`);
+          console.error(`[DB] Connection Failed: ${err.code} - ${err.message}`);
       }
   }
 
