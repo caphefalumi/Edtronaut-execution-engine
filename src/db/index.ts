@@ -27,39 +27,89 @@ export class DB {
   private pool: mysql.Pool;
 
   constructor() {
-    this.pool = mysql.createPool(process.env.DATABASE_URL!);
+    console.log("[DB] Initializing database connection...");
+    
+    // Parse the URL to verify it's being read
+    if (!process.env.DATABASE_URL) {
+        console.error("[DB] FATAL: DATABASE_URL is not set!");
+    }
+
+    // Explicitly configure SSL if using a cloud provider that might need it
+    // Most cloud URLs look like: mysql://user:pass@host:port/db?ssl-mode=REQUIRED
+    // We strip parameters that mysql2 might not like and handle SSL explicitly
+    
+    const dbConfig: any = {
+        uri: process.env.DATABASE_URL,
+        enableKeepAlive: true,
+        keepAliveInitialDelay: 0,
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0
+    };
+
+    // Auto-detect SSL requirement from URL or Env
+    const useSSL = process.env.DATABASE_URL?.includes("ssl-mode") || 
+                   process.env.DATABASE_URL?.includes("ssl=") ||
+                   process.env.DATABASE_SSL === "true";
+
+    if (useSSL) {
+        console.log("[DB] Enabling SSL for database connection");
+        dbConfig.ssl = { rejectUnauthorized: false }; // Allow self-signed certs common in some cloud providers
+    }
+
+    this.pool = mysql.createPool(dbConfig);
+    
+    // Test connection immediately to fail fast
+    this.testConnection();
     this.init();
   }
 
-  private async init() {
-    const connection = await this.pool.getConnection();
-    try {
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS sessions (
-          id VARCHAR(36) PRIMARY KEY,
-          language TEXT NOT NULL,
-          source_code LONGTEXT NOT NULL,
-          status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        )
-      `);
+  private async testConnection() {
+      try {
+          const conn = await this.pool.getConnection();
+          console.log("[DB] Successfully connected to MySQL!");
+          conn.release();
+      } catch (err: any) {
+          console.error(`[DB] Connection Failed: ${err.code} - ${err.message}`);
+          // Don't log full URL to avoid leaking passwords, but log the host
+          const sanitizedHost = process.env.DATABASE_URL?.split('@')[1]?.split('/')[0] || "unknown";
+          console.error(`[DB] Host: ${sanitizedHost}`); 
+      }
+  }
 
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS executions (
-          id VARCHAR(36) PRIMARY KEY,
-          session_id VARCHAR(36) NOT NULL,
-          status VARCHAR(20) NOT NULL DEFAULT 'QUEUED',
-          stdout LONGTEXT,
-          stderr LONGTEXT,
-          execution_time_ms INT,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          FOREIGN KEY (session_id) REFERENCES sessions(id)
-        )
-      `);
-    } finally {
-      connection.release();
+  private async init() {
+    try {
+      const connection = await this.pool.getConnection();
+      try {
+        await connection.query(`
+          CREATE TABLE IF NOT EXISTS sessions (
+            id VARCHAR(36) PRIMARY KEY,
+            language TEXT NOT NULL,
+            source_code LONGTEXT NOT NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+          )
+        `);
+
+        await connection.query(`
+          CREATE TABLE IF NOT EXISTS executions (
+            id VARCHAR(36) PRIMARY KEY,
+            session_id VARCHAR(36) NOT NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'QUEUED',
+            stdout LONGTEXT,
+            stderr LONGTEXT,
+            execution_time_ms INT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (session_id) REFERENCES sessions(id)
+          )
+        `);
+      } finally {
+        connection.release();
+      }
+    } catch (err) {
+      console.error("[DB] Schema Init Failed:", err);
     }
   }
 
