@@ -1,0 +1,10 @@
+{
+  "framework": "vite",
+  "buildCommand": "bun install",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/src/index.ts"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "name": "edstronaut",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "bun test",
+    "test:e2e": "bun test test/e2e.test.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/uuid": "^11.0.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "bullmq": "^5.66.5",
+    "elysia": "^1.4.22",
+    "ioredis": "^5.9.2",
+    "mysql2": "^3.16.1",
+    "uuid": "^13.0.0"
+  }
+}
